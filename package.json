@@ -1,0 +1,32 @@
+{
+	"name": "pi-discord",
+	"version": "0.1.0",
+	"description": "Discord bot for the pi coding agent",
+	"type": "module",
+	"bin": {
+		"pi-discord": "dist/main.js"
+	},
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build": "tsc",
+		"dev": "tsc --watch &",
+		"start": "bun dist/main.js",
+		"start:dev": "bun --watch dist/main.js",
+		"compile": "bun build --compile ./dist/main.js --outfile pi-discord",
+		"compile:all": "npm run build && npm run compile"
+	},
+	"dependencies": {
+		"@mariozechner/pi-coding-agent": "^0.51.2",
+		"@mariozechner/pi-agent-core": "^0.51.2",
+		"@mariozechner/pi-ai": "^0.51.2",
+		"discord.js": "^14.17.0",
+		"chalk": "^5.6.2"
+	},
+	"devDependencies": {
+		"@types/node": "^24.3.0",
+		"typescript": "^5.7.3"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}
