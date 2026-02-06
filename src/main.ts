@@ -78,6 +78,7 @@ function createDiscordContext(
 	state: ChannelState,
 ): DiscordContext {
 	let messageId: string | null = null;
+	let thinkingMessageId: string | null = null;
 	const threadMessageIds: string[] = [];
 	let accumulatedText = "";
 	let isWorking = true;
@@ -104,12 +105,14 @@ function createDiscordContext(
 		respond: async (text: string) => {
 			updatePromise = updatePromise.then(async () => {
 				accumulatedText = accumulatedText ? `${accumulatedText}\n${text}` : text;
-				const displayText = isWorking ? accumulatedText + workingIndicator : accumulatedText;
 
 				if (messageId) {
+					// If we already have a message, update it (streaming mode)
+					const displayText = isWorking ? accumulatedText + workingIndicator : accumulatedText;
 					await bot.updateMessage(event.channelId, messageId, displayText);
 				} else {
-					messageId = await bot.postMessage(event.channelId, displayText);
+					// Post as new message (triggers notification)
+					messageId = await bot.postMessage(event.channelId, accumulatedText);
 				}
 
 				bot.logBotResponse(event.channelId, text, messageId);
@@ -120,11 +123,14 @@ function createDiscordContext(
 		replaceMessage: async (text: string) => {
 			updatePromise = updatePromise.then(async () => {
 				accumulatedText = text;
-				const displayText = isWorking ? accumulatedText + workingIndicator : accumulatedText;
+
 				if (messageId) {
+					// Update existing message
+					const displayText = isWorking ? accumulatedText + workingIndicator : accumulatedText;
 					await bot.updateMessage(event.channelId, messageId, displayText);
 				} else {
-					messageId = await bot.postMessage(event.channelId, displayText);
+					// Post as new message (triggers notification)
+					messageId = await bot.postMessage(event.channelId, accumulatedText);
 				}
 			});
 			await updatePromise;
@@ -141,13 +147,12 @@ function createDiscordContext(
 		},
 
 		setTyping: async (isTyping: boolean) => {
-			if (isTyping && !messageId) {
+			if (isTyping && !thinkingMessageId) {
 				updatePromise = updatePromise.then(async () => {
-					if (!messageId) {
-						accumulatedText = "_Thinking..._";
-						messageId = await bot.postMessage(
+					if (!thinkingMessageId) {
+						thinkingMessageId = await bot.postMessage(
 							event.channelId,
-							accumulatedText + workingIndicator,
+							"_Thinking..._" + workingIndicator,
 						);
 					}
 				});
@@ -162,9 +167,12 @@ function createDiscordContext(
 		setWorking: async (working: boolean) => {
 			updatePromise = updatePromise.then(async () => {
 				isWorking = working;
-				if (messageId) {
-					const displayText = isWorking ? accumulatedText + workingIndicator : accumulatedText;
-					await bot.updateMessage(event.channelId, messageId, displayText);
+				if (!isWorking && thinkingMessageId) {
+					// Delete the thinking message and reset to send fresh message
+					await bot.deleteMessage(event.channelId, thinkingMessageId);
+					thinkingMessageId = null;
+					// Reset messageId so respond() posts a new message (triggers notification)
+					messageId = null;
 				}
 			});
 			await updatePromise;
